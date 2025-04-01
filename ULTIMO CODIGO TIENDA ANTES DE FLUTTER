@@ -1,0 +1,652 @@
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+void main() {
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        fontFamily: 'Georgia',
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.blueAccent),
+          bodyMedium: TextStyle(color: Colors.blueAccent),
+        ),
+      ),
+      home: HomeScreen(),
+      routes: {
+        '/animal_menu': (context) => const AnimalMenuScreen(),
+        '/inventory': (context) => const InventoryScreen(),
+        '/cart': (context) => const CartScreen(),
+      },
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  HomeScreen({Key? key}) : super(key: key);
+
+  final TextEditingController _passwordController = TextEditingController();
+  final String _password = "123456"; // Contraseña única para ambas interfaces
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Menú Principal", style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage("lib/assets/animalitos.jpg"),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  _showPasswordDialog(context, '/inventory');
+                },
+                child: const Text("Inventario"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  _showPasswordDialog(context, '/animal_menu');
+                },
+                child: const Text("Compras"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  backgroundColor: Colors.orange,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPasswordDialog(BuildContext context, String route) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Ingrese la contraseña"),
+          content: TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(hintText: "Contraseña"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                if (_passwordController.text == _password) {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, route);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Contraseña incorrecta")),
+                  );
+                }
+              },
+              child: const Text("Aceptar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class Animal {
+  final String name;
+  final String breed;
+  final int price;
+  final String size;
+  String imagePath;
+  int quantity;
+
+  Animal(this.name, this.breed, this.price, this.size, this.imagePath, this.quantity);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is Animal &&
+        other.name == name &&
+        other.breed == breed &&
+        other.price == price &&
+        other.size == size &&
+        other.imagePath == imagePath;
+  }
+
+  @override
+  int get hashCode {
+    return name.hashCode ^ breed.hashCode ^ price.hashCode ^ size.hashCode ^ imagePath.hashCode;
+  }
+}
+
+class CartItem {
+  final Animal animal;
+  int quantity;
+  bool isSelected;
+
+  CartItem({
+    required this.animal,
+    this.quantity = 1,
+    this.isSelected = true,
+  });
+
+  int get price => animal.price * quantity;
+}
+
+class CartProvider with ChangeNotifier {
+  final List<CartItem> _cartItems = [];
+
+  List<CartItem> get cartItems => _cartItems;
+
+  void addToCart(Animal animal) {
+    final existingItemIndex = _cartItems.indexWhere((item) => item.animal == animal);
+
+    if (existingItemIndex >= 0) {
+      _cartItems[existingItemIndex].quantity++;
+    } else {
+      _cartItems.add(CartItem(animal: animal));
+    }
+
+    notifyListeners();
+  }
+
+  void removeFromCart(CartItem cartItem) {
+    _cartItems.remove(cartItem);
+    notifyListeners();
+  }
+
+  void updateQuantity(CartItem cartItem, int quantity) {
+    cartItem.quantity = quantity;
+    notifyListeners();
+  }
+
+  void toggleSelection(CartItem cartItem) {
+    cartItem.isSelected = !cartItem.isSelected;
+    notifyListeners();
+  }
+
+  void removeSelectedItems() {
+    _cartItems.removeWhere((item) => item.isSelected);
+    notifyListeners();
+  }
+
+  int get totalPrice {
+    return _cartItems.fold(0, (sum, item) => item.isSelected ? sum + item.price : sum);
+  }
+
+  void updateCartItem(Animal updatedAnimal) {
+    final cartItemIndex = _cartItems.indexWhere((item) => item.animal == updatedAnimal);
+
+    if (cartItemIndex >= 0) {
+      _cartItems[cartItemIndex] = CartItem(
+        animal: updatedAnimal,
+        quantity: _cartItems[cartItemIndex].quantity,
+        isSelected: _cartItems[cartItemIndex].isSelected,
+      );
+      notifyListeners();
+    }
+  }
+
+  void cleanCart(List<Animal> updatedAnimals) {
+    _cartItems.removeWhere((cartItem) => !updatedAnimals.contains(cartItem.animal));
+    notifyListeners();
+  }
+}
+
+class InventoryProvider with ChangeNotifier {
+  final List<Animal> _animals = [
+    Animal("Gato", "Naranja", 200, "Pequeño", "lib/assets/gatito.jpeg", 10),
+    Animal("Perro", "Labrador", 300, "Mediano", "lib/assets/perro.jpeg", 5),
+    Animal("Águila", "Real", 500, "Grande", "lib/assets/aguila.jpeg", 3),
+    Animal("Ratón", "Doméstico", 50, "Pequeño", "lib/assets/raton.jpeg", 20),
+    Animal("Víbora", "Cascabel", 150, "Mediano", "lib/assets/vibora.jpeg", 7),
+    Animal("Cocodrilo", "Nilo", 1000, "Grande", "lib/assets/cocodrilo.jpeg", 2),
+    Animal("Paloma", "Blanca", 100, "Pequeño", "lib/assets/palomablanca.jpeg", 15),
+    Animal("Conejo", "Holandés", 120, "Pequeño", "lib/assets/conejo.jpeg", 8),
+    Animal("Burro", "Andaluz", 800, "Grande", "lib/assets/burro.jpeg", 4),
+    Animal("Delfín", "Nariz de Botella", 1500, "Grande", "lib/assets/delfin.jpeg", 1),
+    Animal("Foca", "Común", 700, "Mediano", "lib/assets/foca.jpeg", 6),
+    Animal("Ballena", "Azul", 2000, "Enorme", "lib/assets/ballena.jpeg", 1),
+  ];
+
+  List<Animal> get animals => _animals;
+
+  void updateAnimal(int index, Animal updatedAnimal, BuildContext context) {
+    _animals[index] = updatedAnimal;
+    notifyListeners();
+
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    cartProvider.updateCartItem(updatedAnimal);
+    cartProvider.cleanCart(_animals);
+  }
+
+  void reduceQuantity(int index, int quantity) {
+    _animals[index].quantity -= quantity;
+    notifyListeners();
+  }
+}
+
+class AnimalMenuScreen extends StatelessWidget {
+  const AnimalMenuScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final inventoryProvider = Provider.of<InventoryProvider>(context);
+    final animals = inventoryProvider.animals;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Menú de Animales", style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              Navigator.pushNamed(context, '/cart');
+            },
+          ),
+        ],
+      ),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(10),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 0.8,
+        ),
+        itemCount: animals.length,
+        itemBuilder: (context, index) {
+          return AnimalCard(animal: animals[index]);
+        },
+      ),
+    );
+  }
+}
+
+class AnimalCard extends StatelessWidget {
+  final Animal animal;
+
+  const AnimalCard({Key? key, required this.animal}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context);
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 5,
+      color: Colors.blue[50],
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(animal.imagePath, height: 80, width: 80),
+            const SizedBox(height: 10),
+            Text(
+              animal.name,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text("Raza: ${animal.breed}", style: const TextStyle(fontSize: 14)),
+            Text("Precio: \$${animal.price}", style: const TextStyle(fontSize: 14)),
+            Text("Tamaño: ${animal.size}", style: const TextStyle(fontSize: 14)),
+            Text("Cantidad: ${animal.quantity}", style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                if (animal.quantity > 0) {
+                  cartProvider.addToCart(animal);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("${animal.name} agregado al carrito")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("No hay suficiente stock")),
+                  );
+                }
+              },
+              child: const Text("Agregar al carrito"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class InventoryScreen extends StatelessWidget {
+  const InventoryScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final inventoryProvider = Provider.of<InventoryProvider>(context);
+    final animals = inventoryProvider.animals;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Inventario", style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(10),
+        itemCount: animals.length,
+        itemBuilder: (context, index) {
+          return Card(
+            elevation: 5,
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            child: ListTile(
+              leading: Image.asset(animals[index].imagePath, width: 50, height: 50),
+              title: Text(animals[index].name),
+              subtitle: Text("Raza: ${animals[index].breed}\nPrecio: \$${animals[index].price}\nTamaño: ${animals[index].size}\nCantidad: ${animals[index].quantity}"),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      _editAnimal(context, inventoryProvider, index);
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.image),
+                    onPressed: () {
+                      _showImageSelectionDialog(context, inventoryProvider, index);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _editAnimal(BuildContext context, InventoryProvider inventoryProvider, int index) {
+    TextEditingController nameController = TextEditingController(text: inventoryProvider.animals[index].name);
+    TextEditingController breedController = TextEditingController(text: inventoryProvider.animals[index].breed);
+    TextEditingController priceController = TextEditingController(text: inventoryProvider.animals[index].price.toString());
+    TextEditingController sizeController = TextEditingController(text: inventoryProvider.animals[index].size);
+    TextEditingController quantityController = TextEditingController(text: inventoryProvider.animals[index].quantity.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Editar Animal"),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: "Nombre"),
+                ),
+                TextField(
+                  controller: breedController,
+                  decoration: const InputDecoration(labelText: "Raza"),
+                ),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(labelText: "Precio"),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: sizeController,
+                  decoration: const InputDecoration(labelText: "Tamaño"),
+                ),
+                TextField(
+                  controller: quantityController,
+                  decoration: const InputDecoration(labelText: "Cantidad"),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () {
+                final updatedAnimal = Animal(
+                  nameController.text,
+                  breedController.text,
+                  int.parse(priceController.text),
+                  sizeController.text,
+                  inventoryProvider.animals[index].imagePath,
+                  int.parse(quantityController.text),
+                );
+
+                inventoryProvider.updateAnimal(index, updatedAnimal, context);
+                Navigator.pop(context);
+              },
+              child: const Text("Guardar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showImageSelectionDialog(BuildContext context, InventoryProvider inventoryProvider, int index) {
+    final animals = inventoryProvider.animals;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Seleccionar nueva imagen"),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: GridView.builder(
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: animals.length,
+              itemBuilder: (context, imageIndex) {
+                return GestureDetector(
+                  onTap: () {
+                    final updatedAnimal = Animal(
+                      animals[index].name,
+                      animals[index].breed,
+                      animals[index].price,
+                      animals[index].size,
+                      animals[imageIndex].imagePath,
+                      animals[index].quantity,
+                    );
+                    inventoryProvider.updateAnimal(index, updatedAnimal, context);
+                    Navigator.pop(context);
+                  },
+                  child: Image.asset(animals[imageIndex].imagePath, fit: BoxFit.cover),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class CartScreen extends StatelessWidget {
+  const CartScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context);
+    final inventoryProvider = Provider.of<InventoryProvider>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Carrito"),
+        centerTitle: true,
+        backgroundColor: Colors.blueAccent,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: cartProvider.cartItems.length,
+              itemBuilder: (context, index) {
+                final cartItem = cartProvider.cartItems[index];
+                return Card(
+                  elevation: 5,
+                  margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                  child: ListTile(
+                    leading: Checkbox(
+                      value: cartItem.isSelected,
+                      onChanged: (value) {
+                        cartProvider.toggleSelection(cartItem);
+                      },
+                    ),
+                    title: Text(cartItem.animal.name),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Raza: ${cartItem.animal.breed}"),
+                        Text("Precio: \$${cartItem.animal.price} x ${cartItem.quantity}"),
+                        Text("Tamaño: ${cartItem.animal.size}"),
+                        Text("Total: \$${cartItem.price}"),
+                      ],
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          onPressed: () {
+                            if (cartItem.quantity > 1) {
+                              cartProvider.updateQuantity(cartItem, cartItem.quantity - 1);
+                            } else {
+                              cartProvider.removeFromCart(cartItem);
+                            }
+                          },
+                        ),
+                        Text("${cartItem.quantity}"),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () {
+                            cartProvider.updateQuantity(cartItem, cartItem.quantity + 1);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Total:",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      "\$${cartProvider.totalPrice}",
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    if (cartProvider.totalPrice > 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Compra completada. Total: \$${cartProvider.totalPrice}")),
+                      );
+
+                      cartProvider.cartItems.forEach((cartItem) {
+                        if (cartItem.isSelected) {
+                          final animalIndex = inventoryProvider.animals.indexWhere((animal) => animal == cartItem.animal);
+                          inventoryProvider.reduceQuantity(animalIndex, cartItem.quantity);
+                        }
+                      });
+
+                      cartProvider.removeSelectedItems();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("No hay artículos seleccionados para comprar")),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                  ),
+                  child: const Text(
+                    "Pagar",
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
