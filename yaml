@@ -1,0 +1,40 @@
+name: TIENDAPETS
+description: Aplicación para tienda de mascotas con Firebase
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  firebase_core: ^2.14.0
+  cloud_firestore: ^4.8.0
+  provider: ^6.0.5
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+
+flutter:
+  uses-material-design: true
+  assets:
+    - lib/assets/gatito.jpeg
+    - lib/assets/perro.jpeg
+    - lib/assets/aguila.jpeg
+    - lib/assets/raton.jpeg
+    - lib/assets/vibora.jpeg
+    - lib/assets/cocodrilo.jpeg
+    - lib/assets/palomablanca.jpeg
+    - lib/assets/conejo.jpeg
+    - lib/assets/burro.jpeg
+    - lib/assets/delfin.jpeg
+    - lib/assets/foca.jpeg
+    - lib/assets/ballena.jpeg
